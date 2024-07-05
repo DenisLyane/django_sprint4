@@ -13,8 +13,8 @@ from .models import Category, Comment, Post, User
 
 def comment_annotation(post_manadger):
     return post_manadger.annotate(
-        comment_count=Count('comments')).order_by('-pub_date'
-    )
+        comment_count=Count('comments')
+    ).order_by('-pub_date')
 
 
 class OnlyAuthorMixin(UserPassesTestMixin):
