@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -11,45 +10,38 @@ from .forms import CommentForm, PostForm, ProfileEditForm
 from .models import Category, Comment, Post, User
 
 
-def comment_annotation(post_manadger):
-    return post_manadger.annotate(
-        comment_count=Count('comments')
-    ).order_by('-pub_date')
-
-
 class OnlyAuthorMixin(UserPassesTestMixin):
     def test_func(self):
         object = self.get_object()
         return object.author == self.request.user
 
     def handle_no_permission(self):
-        return redirect('blog:post_detail', self.kwargs['post_id'])
+        return redirect('blog:post_detail', self.kwargs[self.pk_url_kwarg])
 
 
 class CommentMixin(LoginRequiredMixin):
     model = Comment
     form_class = CommentForm
     template_name = 'blog/comment.html'
-    pk_url_kwarg = ['comment_id', 'post_id']
 
     def form_valid(self, form):
         form.instance.author = self.request.user
         form.instance.post = get_object_or_404(
             Post,
-            pk=self.kwargs['post_id']
+            pk=self.kwargs[self.pk_url_kwarg]
         )
         return super().form_valid(form)
 
     def get_object(self):
         return get_object_or_404(
             Comment,
-            pk=self.kwargs['comment_id']
+            pk=self.kwargs[self.pk_url_kwarg]
         )
 
     def get_success_url(self):
         return reverse_lazy(
             'blog:post_detail',
-            kwargs={'post_id': self.kwargs['post_id']}
+            kwargs={'post_id': self.kwargs[self.pk_url_kwarg]}
         )
 
 
@@ -62,7 +54,7 @@ class PostMixin(LoginRequiredMixin, OnlyAuthorMixin):
 
 class PostListView(ListView):
     model = Post
-    queryset = comment_annotation(Post.published)
+    queryset = Post.published.published().commen_count()
     paginate_by = settings.POSTS_ON_PAGE
     template_name = 'blog/index.html'
 
@@ -96,14 +88,14 @@ class PostDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
         post_individual = get_object_or_404(
-            Post, pk=self.kwargs['post_id']
+            Post, pk=self.kwargs[self.pk_url_kwarg]
         )
         post_manager = Post.objects.all() if (
             post_individual.author == self.request.user
-        ) else Post.published.all()
+        ) else Post.published.published()
         context['post'] = get_object_or_404(
             post_manager,
-            pk=self.kwargs['post_id']
+            pk=self.kwargs[self.pk_url_kwarg]
         )
         context['comments'] = self.object.comments.select_related('author')
         return context
@@ -142,7 +134,7 @@ class CategoryListView(ListView):
             slug=self.kwargs['category_slug'],
             is_published=True
         )
-        return Post.published.filter(category=category).order_by(
+        return category.posts(manager='published').published().order_by(
             '-pub_date'
         )
 
@@ -165,11 +157,9 @@ class ProfileListView(ListView):
         self.author = get_object_or_404(User, username=self.kwargs['username'])
         post_manager = Post.objects.all() if (
             self.author == self.request.user
-        ) else Post.published.all()
+        ) else Post.published.published()
 
-        return comment_annotation(post_manager.filter(
-            author=self.author
-        ))
+        return post_manager.filter(author=self.author).commen_count()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -193,12 +183,12 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class CommentCreateView(CommentMixin, CreateView):
-    pass
+    pk_url_kwarg = 'post_id'
 
 
 class CommentUpdateView(CommentMixin, OnlyAuthorMixin, UpdateView):
-    pass
+    pk_url_kwarg = 'comment_id'
 
 
 class CommentDeleteView(CommentMixin, OnlyAuthorMixin, DeleteView):
-    pass
+    pk_url_kwarg = 'comment_id'

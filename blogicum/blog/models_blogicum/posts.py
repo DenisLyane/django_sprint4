@@ -1,72 +1,12 @@
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models import Count
 from django.urls import reverse
 from django.utils import timezone
 
-User = get_user_model()
-
-
-class PublishedModel(models.Model):
-    is_published = models.BooleanField(
-        default=True,
-        blank=True,
-        verbose_name='Опубликовано',
-        help_text='Снимите галочку, чтобы скрыть публикацию.'
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        blank=True,
-        verbose_name='Добавлено'
-    )
-
-    class Meta:
-        abstract = True
-        ordering = ('created_at',)
-
-
-class Category(PublishedModel):
-    title = models.CharField(
-        max_length=settings.MAX_LENGTH,
-        blank=True,
-        verbose_name='Заголовок'
-    )
-    description = models.TextField(
-        verbose_name='Описание',
-        blank=True
-    )
-    slug = models.SlugField(
-        unique=True,
-        verbose_name='Идентификатор',
-        blank=True,
-        help_text=(
-            'Идентификатор страницы для URL;'
-            ' разрешены символы латиницы, цифры, дефис и подчёркивание.'
-        )
-    )
-
-    class Meta:
-        verbose_name = 'категория'
-        verbose_name_plural = 'Категории'
-
-    def __str__(self):
-        return self.title
-
-
-class Location(PublishedModel):
-    name = models.CharField(
-        max_length=settings.MAX_LENGTH,
-        blank=True,
-        verbose_name='Название места'
-    )
-
-    class Meta:
-        verbose_name = 'местоположение'
-        verbose_name_plural = 'Местоположения'
-
-    def __str__(self):
-        return self.name
+from .category import Category
+from .location import Location
+from .publishedmodel import PublishedModel
+from .users import User
 
 
 class PostQuerySet(models.QuerySet):
@@ -80,7 +20,7 @@ class PostQuerySet(models.QuerySet):
 
     def commen_count(self):
         return self.annotate(
-            comment_count=Count('comments')
+            comment_count=models.Count('comments')
         ).order_by('-pub_date')
 
 
@@ -151,24 +91,3 @@ class Post(PublishedModel):
 
     def __str__(self):
         return self.title
-
-
-class Comment(PublishedModel):
-    text = models.TextField('Текст комментария')
-    post = models.ForeignKey(
-        Post,
-        on_delete=models.CASCADE,
-        related_name='comments',
-    )
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='comments'
-    )
-
-    class Meta:
-        verbose_name = 'комментарий'
-        verbose_name_plural = 'Комментарии'
-
-    def __str__(self):
-        return self.text
