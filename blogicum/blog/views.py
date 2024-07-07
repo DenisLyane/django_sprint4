@@ -54,7 +54,7 @@ class PostMixin(LoginRequiredMixin, OnlyAuthorMixin):
 
 class PostListView(ListView):
     model = Post
-    queryset = Post.published.published().commen_count()
+    queryset = Post.published.commen_count()
     paginate_by = settings.POSTS_ON_PAGE
     template_name = 'blog/index.html'
 
@@ -67,7 +67,6 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.author = self.request.user
         post = form.save(commit=False)
-        post.pub_date = timezone.now()
         post.save()
         return super().form_valid(form)
 
@@ -92,7 +91,7 @@ class PostDetailView(DetailView):
         )
         post_manager = Post.objects.all() if (
             post_individual.author == self.request.user
-        ) else Post.published.published()
+        ) else Post.published
         context['post'] = get_object_or_404(
             post_manager,
             pk=self.kwargs[self.pk_url_kwarg]
@@ -127,14 +126,15 @@ class CategoryListView(ListView):
     model = Post
     paginate_by = settings.POSTS_ON_PAGE
     template_name = 'blog/category.html'
+    slug_url_kwarg = 'category_slug'
 
     def get_queryset(self):
         category = get_object_or_404(
             Category,
-            slug=self.kwargs['category_slug'],
+            slug=self.kwargs[self.slug_url_kwarg],
             is_published=True
         )
-        return category.posts(manager='published').published().order_by(
+        return category.posts(manager='published').order_by(
             '-pub_date'
         )
 
@@ -142,7 +142,7 @@ class CategoryListView(ListView):
         context = super().get_context_data(**kwargs)
         context['category'] = get_object_or_404(
             Category,
-            slug=self.kwargs['category_slug'],
+            slug=self.kwargs[self.slug_url_kwarg],
             is_published=True
         )
         return context
@@ -155,9 +155,9 @@ class ProfileListView(ListView):
 
     def get_queryset(self):
         self.author = get_object_or_404(User, username=self.kwargs['username'])
-        post_manager = Post.objects.all() if (
+        post_manager = Post.objects if (
             self.author == self.request.user
-        ) else Post.published.published()
+        ) else Post.published
 
         return post_manager.filter(author=self.author).commen_count()
 

@@ -1,3 +1,13 @@
+# НЕ ПРОХОДИТ pytest, если каждую модель
+# вынести по отдельным файлам в папку models
+# о проблеме писал Вам в "Пачке"
+# папку моделей ПЕРЕИМЕНОВАЛ СПЕЦИАЛЬНО,
+# что бы можно было отправить на ревью!
+# (тесты валятся с папкой названной "models"),
+# (Переименовал в models_blogicum)
+# Кэш чистил, не помогло.
+
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -88,11 +98,8 @@ class PublishedPostManager(models.Manager):
 
     def get_queryset(self):
         return (
-            PostQuerySet(self.model, using=self._db).all()
+            PostQuerySet(self.model, using=self._db).published()
         )
-
-    def published(self):
-        return self.get_queryset().published()
 
     def commen_count(self):
         return self.get_queryset().commen_count()

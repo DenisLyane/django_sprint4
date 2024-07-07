@@ -28,11 +28,8 @@ class PublishedPostManager(models.Manager):
 
     def get_queryset(self):
         return (
-            PostQuerySet(self.model, using=self._db).all()
+            PostQuerySet(self.model, using=self._db).published()
         )
-
-    def published(self):
-        return self.get_queryset().published()
 
     def commen_count(self):
         return self.get_queryset().commen_count()
